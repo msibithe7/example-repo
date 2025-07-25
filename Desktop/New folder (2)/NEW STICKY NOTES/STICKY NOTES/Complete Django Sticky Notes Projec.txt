@@ -1,0 +1,210 @@
+Complete Django Sticky Notes Project
+Project Structure
+sticky_notes/
+├── manage.py
+├── sticky_notes/
+│   ├── __init__.py
+│   ├── settings.py
+│   ├── urls.py
+│   ├── wsgi.py
+│   └── asgi.py
+├── notes/
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py
+│   ├── views.py
+│   ├── forms.py
+│   ├── urls.py
+│   └── migrations/
+│       ├── __init__.py
+│       └── 0001_initial.py
+├── templates/
+│   ├── base.html
+│   └── notes/
+│       ├── note_list.html
+│       ├── note_detail.html
+│       ├── note_form.html
+│       └── note_confirm_delete.html
+├── static/
+│   └── css/
+│       └── style.css
+└── requirements.txt
+Additional Files
+requirements.txt:
+Django==4.2.7
+notes/apps.py:
+from django.apps import AppConfig
+
+
+class NotesConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'notes'
+    verbose_name = 'Sticky Notes'
+sticky_notes/asgi.py:
+import os
+from django.core.asgi import get_asgi_application
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sticky_notes.settings')
+application = get_asgi_application()
+sticky_notes/wsgi.py:
+import os
+from django.core.wsgi import get_wsgi_application
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sticky_notes.settings')
+application = get_wsgi_application()
+notes/views.py (Updated to prevent form resubmission):
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.db.models import Q
+from django.core.paginator import Paginator
+from django.http import HttpResponseRedirect
+from django.urls import reverse
+from .models import StickyNote
+from .forms import StickyNoteForm, SearchForm
+
+
+def note_list(request):
+    """View to display all sticky notes with search functionality."""
+    notes = StickyNote.objects.all()
+    search_form = SearchForm(request.GET)
+    
+    # Handle search
+    if search_form.is_valid() and search_form.cleaned_data['query']:
+        query = search_form.cleaned_data['query']
+        notes = notes.filter(
+            Q(title__icontains=query) | Q(content__icontains=query)
+        )
+    
+    # Pagination
+    paginator = Paginator(notes, 9)  # Show 9 notes per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'search_form': search_form,
+        'total_notes': notes.count()
+    }
+    return render(request, 'notes/note_list.html', context)
+
+
+def note_detail(request, pk):
+    """View to display a single sticky note."""
+    note = get_object_or_404(StickyNote, pk=pk)
+    context = {'note': note}
+    return render(request, 'notes/note_detail.html', context)
+
+
+def note_create(request):
+    """View to create a new sticky note."""
+    if request.method == 'POST':
+        form = StickyNoteForm(request.POST)
+        if form.is_valid():
+            note = form.save()
+            messages.success(request, 'Note created successfully!')
+            # Use HttpResponseRedirect to prevent form resubmission on refresh
+            return HttpResponseRedirect(reverse('note_detail', args=[note.pk]))
+    else:
+        form = StickyNoteForm()
+    
+    context = {'form': form, 'action': 'Create'}
+    return render(request, 'notes/note_form.html', context)
+
+
+def note_edit(request, pk):
+    """View to edit an existing sticky note."""
+    note = get_object_or_404(StickyNote, pk=pk)
+    
+    if request.method == 'POST':
+        form = StickyNoteForm(request.POST, instance=note)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Note updated successfully!')
+            # Use HttpResponseRedirect to prevent form resubmission on refresh
+            return HttpResponseRedirect(reverse('note_detail', args=[note.pk]))
+    else:
+        form = StickyNoteForm(instance=note)
+    
+    context = {'form': form, 'note': note, 'action': 'Edit'}
+    return render(request, 'notes/note_form.html', context)
+
+
+def note_delete(request, pk):
+    """View to delete a sticky note."""
+    note = get_object_or_404(StickyNote, pk=pk)
+    
+    if request.method == 'POST':
+        note.delete()
+        messages.success(request, 'Note deleted successfully!')
+        # Use HttpResponseRedirect to prevent form resubmission on refresh
+        return HttpResponseRedirect(reverse('note_list'))
+    
+    context = {'note': note}
+    return render(request, 'notes/note_confirm_delete.html', context)
+Migration File
+notes/migrations/0001_initial.py:
+from django.db import migrations, models
+import django.utils.timezone
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = [
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='StickyNote',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('title', models.CharField(help_text='Enter the title of your note', max_length=200)),
+                ('content', models.TextField(help_text='Enter the content of your note')),
+                ('created_at', models.DateTimeField(default=django.utils.timezone.now, help_text='Date and time when the note was created')),
+                ('updated_at', models.DateTimeField(auto_now=True, help_text='Date and time when the note was last updated')),
+            ],
+            options={
+                'verbose_name': 'Sticky Note',
+                'verbose_name_plural': 'Sticky Notes',
+                'ordering': ['-updated_at', '-created_at'],
+            },
+        ),
+    ]
+Complete Admin Configuration
+notes/admin.py:
+from django.contrib import admin
+from .models import StickyNote
+
+
+@admin.register(StickyNote)
+class StickyNoteAdmin(admin.ModelAdmin):
+    """Admin configuration for StickyNote model."""
+    
+    list_display = ('title', 'get_short_content', 'created_at', 'updated_at')
+    list_filter = ('created_at', 'updated_at')
+    search_fields = ('title', 'content')
+    readonly_fields = ('created_at', 'updated_at')
+    ordering = ('-updated_at',)
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        (None, {
+            'fields': ('title', 'content')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def get_short_content(self, obj):
+        """Display shortened content in admin list."""
+        return obj.get_short
+
+
+---
+
+
+

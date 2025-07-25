@@ -1,0 +1,8 @@
+{% extends 'sticky_notes/base.html' %}
+
+{% block content %}
+  <h1>{{ sticky_note.title }}</h1>
+  <p>{{ sticky_note.content }}</p>
+  <a href="{% url 'update_sticky_note' sticky_note.pk %}">Edit</a> |
+  <a href="{% url 'delete_sticky_note' sticky_note.pk %}">Delete</a>
+{% endblock %}

@@ -1,0 +1,19 @@
+sticky_notes/
+├── manage.py
+├── db.sqlite3
+├── requirements.txt
+├── notes/
+│   ├── admin.py
+│   ├── models.py
+│   ├── views.py
+│   ├── forms.py
+│   ├── urls.py
+│   └── tests.py     ← (if created)
+├── templates/
+│   └── notes/
+│       ├── note_list.html
+│       ├── note_form.html
+│       └── note_confirm_delete.html
+├── static/          ← (optional, if used)
+├── media/           ← (optional)
+└── README.md        ← (optional)
